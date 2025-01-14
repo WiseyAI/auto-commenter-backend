@@ -1,0 +1,22 @@
+{
+  "name": "auto-commenter-backend",
+  "module": "src/server.ts",
+  "version": "0.0.1",
+  "description": "A backend for auto-commenter",
+  "main": "src/server.ts",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "test": "bun test"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/express": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
