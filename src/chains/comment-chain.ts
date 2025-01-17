@@ -4,7 +4,7 @@ import { LLMChain } from "langchain/chains";
 
 export const createCommentChain = () => {
     const llm = new ChatOpenAI({
-        modelName: "gpt-40-mini",
+        modelName: "gpt-3.5-turbo",
         temperature: 0.7,
     });
 
