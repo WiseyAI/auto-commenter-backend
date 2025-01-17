@@ -1,4 +1,5 @@
-export const getPostContent = async (postUrl: string, accessToken: string) => {
+export const getPostContent = async (postUrl: string) => {
+    const accessToken = process.env.BRIGHT_DATA_TOKEN!;
     try {
         // First API call to trigger the dataset
         const triggerResponse = await fetch('https://api.brightdata.com/datasets/v3/trigger?dataset_id=gd_lyy3tktm25m4avu764&include_errors=true', {
@@ -64,6 +65,7 @@ export const getPostContent = async (postUrl: string, accessToken: string) => {
             date: post.date_posted,
             likes: post.num_likes,
             comments: post.num_comments,
+            postUrn: post.id,
             author: {
                 name: post.user_id,
                 title: post.user_title,

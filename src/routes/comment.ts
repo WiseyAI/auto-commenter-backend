@@ -11,15 +11,19 @@ const router = express.Router();
 
 router.post('/comment', asyncHandler(async (req: Request, res: Response) => {
     try {
-        const { postId } = req.body;
+        const { postUrl } = req.body;
         const accessToken = process.env.TEST_ACCESS_TOKEN;
+        if (!postUrl || !accessToken) {
+            return res.status(400).json({ error: 'Missing required parameters' });
+        }
+        const decryptedAccessToken = decrypt(accessToken);
 
-        if (!postId || !accessToken) {
+        if (!postUrl || !accessToken) {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
-        const comment = await processLinkedinPost(postId, accessToken);
-
+        const comment = await processLinkedinPost(postUrl, decryptedAccessToken);
+        console.log('reload page');
         res.json({
             success: true,
             comment
@@ -69,7 +73,7 @@ router.post('/post/test', asyncHandler(async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
-        const post = await getPostContent(postUrl, accessToken);
+        const post = await getPostContent(postUrl);
         const comment = await generateComment(post);
 
         res.json({
