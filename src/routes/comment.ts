@@ -11,22 +11,42 @@ const router = express.Router();
 
 router.post('/comment', asyncHandler(async (req: Request, res: Response) => {
     try {
-        const { postUrl } = req.body;
+        const { postUrls } = req.body;  // Expect an array of URLs
         const accessToken = process.env.TEST_ACCESS_TOKEN;
-        if (!postUrl || !accessToken) {
-            return res.status(400).json({ error: 'Missing required parameters' });
+
+        // Validate input
+        if (!Array.isArray(postUrls) || postUrls.length === 0 || !accessToken) {
+            return res.status(400).json({ error: 'Missing required parameters or invalid postUrls format' });
         }
+
         const decryptedAccessToken = decrypt(accessToken);
 
-        if (!postUrl || !accessToken) {
-            return res.status(400).json({ error: 'Missing required parameters' });
+        // Process all URLs and collect results
+        const results = [];
+        const errors = [];
+
+        for (const url of postUrls) {
+            try {
+                const comment = await processLinkedinPost(url, decryptedAccessToken);
+                results.push({
+                    url,
+                    success: true,
+                    comment
+                });
+            } catch (error) {
+                errors.push({
+                    url,
+                    error: error instanceof Error ? error.message : 'Processing error'
+                });
+            }
         }
 
-        const comment = await processLinkedinPost(postUrl, decryptedAccessToken);
         console.log('reload page');
+
         res.json({
             success: true,
-            comment
+            processed: results,
+            errors: errors.length > 0 ? errors : undefined
         });
 
     } catch (error) {
@@ -36,7 +56,6 @@ router.post('/comment', asyncHandler(async (req: Request, res: Response) => {
         });
     }
 }));
-
 router.post('/comment/test', asyncHandler(async (req: Request, res: Response) => {
     try {
         const { postId, message } = req.body;
