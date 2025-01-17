@@ -1,0 +1,1135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                    String               @id @default(uuid())
+  name                  String               @unique
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  users                 OrganizationUser[]
+  licenseKeys           LicenseKey[]
+  ownedLicenses         OwnedLicense[]
+  isPremium             Boolean              @default(false)
+  planId                String?
+  plan                  OrganizationPlan?    @relation(fields: [planId], references: [id])
+  mainLicenseKeyId      String?              @unique
+  mainLicenseKey        LicenseKey?          @relation("OrganizationMainLicenseKey", fields: [mainLicenseKeyId], references: [id])
+  additionalLicenseKeys LicenseKey[]         @relation("OrganizationAdditionalLicenseKeys")
+  invites               OrganizationInvite[]
+}
+
+model OrganizationPlan {
+  id                String         @id @default(uuid())
+  name              PlanName       @unique
+  maxAdditionalKeys Int
+  // Add any additional fields specific to each plan
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  organizations     Organization[]
+}
+
+model OrganizationUser {
+  id               String            @id @default(uuid())
+  userId           String
+  organizationId   String
+  role             OrganizationRole
+  assignedAt       DateTime          @default(now())
+  user             User              @relation(fields: [userId], references: [id])
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  assignedLicenses AssignedLicense[] // New relation
+
+  @@unique([userId, organizationId])
+}
+
+model LicenseKey {
+  id                 String    @id @default(uuid())
+  key                String    @unique
+  isActive           Boolean   @default(true)
+  activatedAt        DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  activationCount    Int       @default(0)
+  vendor             String?
+  planId             String?
+  tier               Int?
+  lemonProductId     Int?
+  deActivatedAt      DateTime?
+  redemptionUrl      String?
+  planChangeUrl      String?
+  appsumoAccessToken String?
+  converted_to_team  Boolean?
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  isMainKey                Boolean       @default(true)
+  mainOrganization         Organization? @relation("OrganizationMainLicenseKey")
+  additionalOrganization   Organization? @relation("OrganizationAdditionalLicenseKeys", fields: [additionalOrganizationId], references: [id])
+  additionalOrganizationId String?
+
+  apiKeyId String?
+  apiKey   ApiKey? @relation(fields: [apiKeyId], references: [id])
+
+  customKnowledge LicenseKeyCustomKnowledge?
+
+  users           UserLicenseKey[]
+  redeemCode      RedeemCode[]
+  freeComments    FreeComment[]
+  apiUsages       ApiUsage[]
+  installations   Installation[]
+  temporaryTokens TemporaryToken[]
+  activations     Activation[]
+  usageTracking   UsageTracking[]
+  settings        LicenseKeySettings?
+  ownedLicenses   OwnedLicense[]
+
+  subLicenses SubLicense[]
+
+  subscriptions UserSubscription[]
+
+  autoCampaigns AutoCommenterCampaign[] @relation("LicenseKeyCampaigns")
+}
+
+model LicenseKeyCustomKnowledge {
+  id           String     @id @default(uuid())
+  licenseKeyId String     @unique
+  licenseKey   LicenseKey @relation(fields: [licenseKeyId], references: [id])
+
+  // Core Brand Information
+  brandName           String?
+  brandPersonality    String?
+  industry            String?
+  targetAudience      String? @db.Text
+  productServices     String? @db.Text
+  uniqueSellingPoints String? @db.Text
+  brandVoice          String? @db.Text
+  contentTopics       String? @db.Text
+  brandValues         String? @db.Text
+  missionStatement    String? @db.Text
+
+  // Personal Background
+  personalBackground String? @db.Text
+  values             String? @db.Text
+  lifestyle          String? @db.Text
+
+  // Professional Experience
+  professionalBackground String? @db.Text
+  expertise              String? @db.Text
+  industryInsights       String? @db.Text
+
+  // Additional Brand Strategy
+  uniqueApproach  String? @db.Text
+  contentStrategy String? @db.Text
+
+  knowledgeSummaries LicenseKeyKnowledgeSummary[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LicenseKeyKnowledgeSummary {
+  id                          String                    @id @default(uuid())
+  licenseKeyCustomKnowledgeId String
+  licenseKeyCustomKnowledge   LicenseKeyCustomKnowledge @relation(fields: [licenseKeyCustomKnowledgeId], references: [id])
+  summary                     String                    @db.Text
+  createdAt                   DateTime                  @default(now())
+
+  @@index([licenseKeyCustomKnowledgeId])
+}
+
+model SubLicense {
+  id                 String    @id @default(uuid())
+  key                String    @unique
+  status             String // e.g., "ACTIVE", "INACTIVE"
+  activationCount    Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  originalLicenseKey String? // Added to track original license key
+  deactivatedAt      DateTime? // Added to track when license was deactivated
+  converted_to_team  Boolean?
+  vendor             String?
+
+  mainLicenseKeyId String
+  mainLicenseKey   LicenseKey @relation(fields: [mainLicenseKeyId], references: [id])
+
+  // Assignment fields
+  assignedUserId String?
+  assignedEmail  String?
+  assignedUser   User?   @relation(fields: [assignedUserId], references: [id])
+
+  // Analytics and usage
+  usageAnalytics UsageTracking[]
+}
+
+model ElfGameAttempt {
+  id              String    @id @default(uuid())
+  userId          String?
+  ipAddress       String?
+  sessionId       String
+  attempts        Int       @default(0)
+  catches         Int       @default(0)
+  lastAttemptAt   DateTime?
+  discountClaimed Boolean   @default(false)
+  claimedDiscount Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@unique([userId, sessionId])
+  @@unique([ipAddress, sessionId])
+  @@index([lastAttemptAt])
+}
+
+model OrganizationInvite {
+  id             String           @id @default(uuid())
+  email          String
+  organizationId String
+  role           OrganizationRole
+  token          String           @unique
+  expires        DateTime
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([email, organizationId])
+}
+
+model OwnedLicense {
+  id             String   @id @default(uuid())
+  organizationId String
+  licenseKeyId   String
+  quantity       Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  licenseKey       LicenseKey        @relation(fields: [licenseKeyId], references: [id])
+  assignedLicenses AssignedLicense[]
+
+  @@unique([organizationId, licenseKeyId])
+}
+
+// New model for assigned licenses to organization users
+model AssignedLicense {
+  id                 String   @id @default(uuid())
+  organizationUserId String
+  ownedLicenseId     String
+  assignedAt         DateTime @default(now())
+
+  organizationUser OrganizationUser @relation(fields: [organizationUserId], references: [id])
+  ownedLicense     OwnedLicense     @relation(fields: [ownedLicenseId], references: [id])
+
+  @@unique([organizationUserId, ownedLicenseId])
+}
+
+model LicenseKeySettings {
+  id                    String   @id @default(uuid())
+  licenseKeyId          String   @unique
+  userName              String?
+  customButtons         Json?
+  customActions         Json?
+  model                 String?
+  replyTone             String?
+  replyLength           String?
+  toneIntent            String?
+  language              String?
+  usePostNativeLanguage Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  licenseKey LicenseKey @relation(fields: [licenseKeyId], references: [id])
+}
+
+model Activation {
+  id                  String              @id @default(uuid())
+  licenseKeyId        String
+  licenseKey          LicenseKey          @relation(fields: [licenseKeyId], references: [id])
+  userId              String
+  user                User                @relation(fields: [userId], references: [id])
+  activatedAt         DateTime            @default(now())
+  activationToken     String              @unique
+  currentlyActivated  Boolean?
+  activationTokenType ActivationTokenType
+  deviceType          String? // e.g., "Android", "iOS", "Mac", "Windows", "Linux"
+  deviceModel         String? // e.g., "iPhone 12", "Samsung Galaxy S21"
+  osName              String?
+  osVersion           String? // e.g., "iOS 14.5", "Android 11"
+  browser             String? // e.g., "Chrome", "Safari", "Firefox"
+  browserVersion      String? // e.g., "91.0.4472.124"
+  ipAddress           String?
+
+  @@index([licenseKeyId])
+  @@index([userId])
+}
+
+model ApiKey {
+  id            String                @id @default(uuid())
+  key           String                @unique
+  vendor        String?
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  users         UserApiKey[]
+  apiUsages     ApiUsage[]
+  freeComments  FreeComment[]
+  installations Installation[]
+  usageTracking ApiKeyUsageTracking[] // New relation
+
+  licenseKeys     LicenseKey[]
+  customKnowledge ApiKeyCustomKnowledge?
+}
+
+model ApiKeyCustomKnowledge {
+  id       String @id @default(uuid())
+  apiKeyId String @unique
+  apiKey   ApiKey @relation(fields: [apiKeyId], references: [id])
+
+  brandName           String?
+  brandPersonality    String?
+  industry            String?
+  targetAudience      String?
+  productServices     String?
+  uniqueSellingPoints String?
+  brandVoice          String?
+  contentTopics       String?
+  brandValues         String?
+  missionStatement    String?
+
+  knowledgeSummaries KnowledgeSummary[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KnowledgeSummary {
+  id                      String                @id @default(uuid())
+  apiKeyCustomKnowledgeId String
+  apiKeyCustomKnowledge   ApiKeyCustomKnowledge @relation(fields: [apiKeyCustomKnowledgeId], references: [id])
+  summary                 String                @db.Text
+  createdAt               DateTime              @default(now())
+
+  @@index([apiKeyCustomKnowledgeId])
+}
+
+model ApiKeyUsageTracking {
+  id           String   @id @default(uuid())
+  apiKeyId     String
+  apiKey       ApiKey   @relation(fields: [apiKeyId], references: [id])
+  usage        Int      @default(0)
+  date         DateTime @default(now())
+  endpoint     String
+  responseTime Int? // in milliseconds
+  statusCode   Int?
+  errorMessage String?
+
+  prompt   String?
+  action   String?
+  content  String?
+  platform String?
+
+  @@unique([apiKeyId, date, endpoint])
+  @@index([apiKeyId])
+  @@index([date])
+}
+
+model FreeUser {
+  id             String         @id @default(uuid())
+  externalUserId String         @unique @default(uuid())
+  username       String         @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  leaderboard    Leaderboard?
+  installations  Installation[]
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expires   DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id                          String   @id @default(uuid())
+  externalUserId              String?  @unique @default(uuid()) // External userId, optional
+  firstLogin                  Boolean? @default(true)
+  email                       String?  @unique
+  name                        String?
+  username                    String?  @unique
+  password                    String?
+  picture                     String?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  deactivated                 Boolean  @default(false)
+  isAdmin                     Boolean  @default(false)
+  isSales                     Boolean  @default(false)
+  isPaidUser                  Boolean  @default(false)
+  onboardingComplete          Boolean  @default(false) // New field
+  thumbnailCredits            Int?     @default(1) // New field for tracking credits
+  isSupport                   Boolean  @default(false)
+  hasClaimedOnboardingCredits Boolean  @default(false) // Add this field
+
+  isEmailVerified Boolean @default(false)
+
+  diwali24SaleEmailSent Boolean? @default(false)
+
+  signInMethod SignInMethod @default(EMAIL) // New field
+
+  signupSource String?
+
+  licenseKeys             UserLicenseKey[]
+  apiKeys                 UserApiKey[]
+  leaderboard             Leaderboard?
+  sessions                Session[]
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  installations           Installation[]
+  activations             Activation[]
+  onboarding              Onboarding? // New relation
+  usageTracking           UsageTracking[]
+  purchases               Purchase[]
+  organizations           OrganizationUser[] // New relation
+  prompts                 Prompt[]
+  emailVerificationTokens EmailVerificationToken[]
+  credit                  UserCredit?
+  reviews                 ProductReview[] // Add this line to existing User model
+  onboardingProgress      OnboardingProgress?
+  onboardingFeedback      OnboardingFeedback?
+
+  elfGameAttempts ElfGameAttempt[]
+
+  notifications Notification[]
+
+  subscriptions UserSubscription[]
+
+sublicenses SubLicense[]
+emails      Emails[]
+oauthTokens OAuthToken[]
+
+autoCampaigns AutoCommenterCampaign[] @relation("UserCampaigns")
+}
+
+model Emails {
+  id                       String    @id @default(uuid())
+  userId                   String    @unique
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  user                     User      @relation(fields: [userId], references: [id])
+  sentAt                   DateTime?
+  vendor                   String?
+  isAppsumoCourseEmailSent Boolean?
+}
+
+model Onboarding {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id])
+  industry             String? // Added missing industry field
+  role                 String?
+  roleOther            String?
+  primaryPlatform      String?
+  primaryPlatformOther String?
+  businessType         String?
+  engagementGoal       String?
+  contentFrequency     String?
+  commentFrequency     String?
+  companySize          String?
+  aiExperience         String?
+  painPoints           String[] @default([]) // Added array field
+  customPainPoint      String? // Added field
+  biggestChallenge     String? // Added field
+  completedAt          DateTime @default(now())
+  skipped              Boolean  @default(false)
+}
+
+model OnboardingProgress {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  currentStep Int      @default(0)
+  isCompleted Boolean  @default(false)
+  lastUpdated DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model OnboardingFeedback {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  rating    Int // 1-5 rating
+  feedback  String? // Optional text feedback
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model TemporaryToken {
+  id           String     @id @default(uuid())
+  token        String     @unique
+  licenseKeyId String
+  licenseKey   LicenseKey @relation(fields: [licenseKeyId], references: [id])
+  createdAt    DateTime   @default(now())
+  expiresAt    DateTime
+}
+
+model Session {
+  id           String     @id
+  userId       String
+  token        String?    @unique
+  deviceType   DeviceType @default(WEB)
+  deviceInfo   Json?      // Store device metadata
+  lastActive   DateTime   @default(now())
+  expiresAt    DateTime
+  isRevoked    Boolean    @default(false)
+  
+  // New fields for OAuth tokens
+  platformTokens Json?    // Store encrypted tokens for different platforms
+  
+  user User @relation(references: [id], fields: [userId], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model OAuthToken {
+  id           String   @id @default(uuid())
+  userId       String
+  platform     String   // e.g., "linkedin", "twitter"
+  accessToken  String   // Encrypted access token
+  refreshToken String?  // Encrypted refresh token
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  isValid      Boolean  @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+  @@index([userId])
+}
+model RefreshToken {
+  id         String     @id @default(uuid())
+  token      String     @unique
+  userId     String
+  deviceType DeviceType
+  deviceInfo Json?
+  expiresAt  DateTime
+  isRevoked  Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum DeviceType {
+  WEB
+  MOBILE_IOS
+  MOBILE_ANDROID
+  DESKTOP
+  OTHER
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expires   DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model UserLicenseKey {
+  userId       String
+  licenseKeyId String
+  assignedAt   DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id])
+  licenseKey   LicenseKey @relation(fields: [licenseKeyId], references: [id])
+
+  @@id([userId, licenseKeyId])
+}
+
+model LicenseKeyLog {
+  id         String   @id @default(uuid())
+  date       DateTime
+  userId     String
+  licenseKey String
+  count      Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([date, userId, licenseKey])
+}
+
+model UserApiKey {
+  userId     String
+  apiKeyId   String
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+  apiKey     ApiKey   @relation(fields: [apiKeyId], references: [id])
+
+  @@id([userId, apiKeyId])
+}
+
+model FreeComment {
+  id           String      @id @default(uuid())
+  content      String
+  prompt       String
+  platform     String
+  createdAt    DateTime    @default(now())
+  licenseKeyId String?
+  apiKeyId     String?
+  licenseKey   LicenseKey? @relation(fields: [licenseKeyId], references: [id])
+  apiKey       ApiKey?     @relation(fields: [apiKeyId], references: [id])
+}
+
+model ApiUsage {
+  id           String      @id @default(uuid())
+  content      String
+  prompt       String
+  platform     String
+  createdAt    DateTime    @default(now())
+  licenseKeyId String?
+  apiKeyId     String?
+  licenseKey   LicenseKey? @relation(fields: [licenseKeyId], references: [id])
+  apiKey       ApiKey?     @relation(fields: [apiKeyId], references: [id])
+}
+
+model Leaderboard {
+  id            String   @id @default(uuid())
+  userId        String?  @unique
+  freeUserId    String?  @unique
+  level         Int      @default(1)
+  totalComments Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  user     User?     @relation(fields: [userId], references: [id])
+  freeUser FreeUser? @relation(fields: [freeUserId], references: [id])
+
+  @@index([userId])
+  @@index([freeUserId])
+}
+
+model UsageTracking {
+  id             String   @id @default(uuid())
+  licenseKeyId   String?
+  subLicenseId   String?
+  userId         String?
+  externalUserId String?
+  action         String
+  platform       String
+  createdAt      DateTime @default(now())
+  event          String?
+
+  licenseKey LicenseKey? @relation(fields: [licenseKeyId], references: [id], onDelete: SetNull)
+  subLicense SubLicense? @relation(fields: [subLicenseId], references: [id], onDelete: SetNull)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([licenseKeyId])
+  @@index([subLicenseId])
+  @@index([userId])
+  @@index([externalUserId])
+}
+
+model Installation {
+  id            String             @id @default(uuid())
+  status        InstallationStatus
+  reason        String?
+  otherReason   String?
+  installedAt   DateTime           @default(now())
+  uninstalledAt DateTime?
+  licenseKeyId  String?
+  apiKeyId      String?
+  userId        String?
+  licenseKey    LicenseKey?        @relation(fields: [licenseKeyId], references: [id])
+  apiKey        ApiKey?            @relation(fields: [apiKeyId], references: [id])
+  user          User?              @relation(fields: [userId], references: [id])
+
+  freeUserId String?
+  freeUser   FreeUser? @relation(fields: [freeUserId], references: [id])
+}
+
+model Purchase {
+  id        String   @id @default(uuid())
+  userId    String
+  packId    String
+  credits   Int
+  createdAt DateTime @default(now())
+
+  user                User               @relation(fields: [userId], references: [id])
+  pack                Pack               @relation(fields: [packId], references: [id])
+  creditTransactionId String?            @unique
+  creditTransaction   CreditTransaction? @relation(fields: [creditTransactionId], references: [id])
+}
+
+model Pack {
+  id        String   @id @default(uuid())
+  name      String
+  credits   Int
+  price     Int
+  createdAt DateTime @default(now())
+
+  purchases Purchase[]
+}
+
+enum InstallationStatus {
+  INSTALLED
+  UNINSTALLED
+}
+
+enum ActivationTokenType {
+  ACTIVE
+  INACTIVE
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum SignInMethod {
+  EMAIL
+  GOOGLE
+  OTHER
+}
+
+enum PlanName {
+  T0
+  T1
+  T2
+  T3
+  T4
+  T5
+}
+
+model Prompt {
+  id          String       @id @default(uuid())
+  text        String
+  upvotes     Int          @default(0)
+  category    String
+  contributor String?
+  title       String?
+  userId      String
+  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userUpvotes UserUpvote[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId])
+}
+
+model UserUpvote {
+  id        String   @id @default(uuid())
+  userId    String
+  promptId  String
+  prompt    Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, promptId])
+  @@index([userId])
+  @@index([promptId])
+}
+
+//credit system
+model UserCredit {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Int      @default(10) // Changed from 0 to 10
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id])
+  transactions CreditTransaction[]
+}
+
+// New model for tracking credit transactions
+model CreditTransaction {
+  id           String          @id @default(uuid())
+  userCreditId String
+  amount       Int
+  type         TransactionType
+  description  String?
+  createdAt    DateTime        @default(now())
+
+  userCredit UserCredit @relation(fields: [userCreditId], references: [id])
+  purchase   Purchase? // Add this line
+}
+
+enum TransactionType {
+  EARNED
+  SPENT
+  REFUNDED
+  GIFTED
+  PURCHASED
+  PLAN_CREDITS
+  PLAN_CREDITS_REMOVED
+  PLAN_CREDITS_ADJUSTED
+}
+
+//REDEEM CODES
+
+model RedeemCodeBatch {
+  id        String       @id @default(uuid())
+  name      String
+  campaign  String
+  quantity  Int
+  validity  DateTime
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  createdBy String?
+  codes     RedeemCode[]
+}
+
+model RedeemCode {
+  id           String           @id @default(uuid())
+  code         String           @unique
+  batchId      String? // Make it optional first
+  batch        RedeemCodeBatch? @relation(fields: [batchId], references: [id]) // Optional relation
+  status       RedeemCodeStatus @default(ACTIVE)
+  claimedAt    DateTime?
+  claimedBy    String?
+  licenseKeyId String?
+  licenseKey   LicenseKey?      @relation(fields: [licenseKeyId], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([code])
+  @@index([batchId])
+  @@index([status])
+}
+
+enum RedeemCodeStatus {
+  ACTIVE
+  CLAIMED
+  EXPIRED
+  DISABLED
+}
+
+//OLLY MOBILE
+model MobileChatRequest {
+  id         String   @id @default(uuid())
+  content    String // The message sent by the user
+  response   String // The AI response
+  platform   String? // Optional platform information
+  deviceInfo String? // Device information from user agent
+  authToken  String // The auth token used (hashed)
+  action     String   @default("comment") // New field for action type
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([authToken])
+  @@index([createdAt])
+}
+
+model BlogVisitorEmail {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  routePath String // Stores which blog post they were reading
+  source    String   @default("popup") // Where the email was captured from
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+//GOOGLE REVIEWS FOR PRODUCT PAGES
+
+model ProductReview {
+  id          String       @id @default(uuid())
+  productSlug String // This will store the route name like "ai-agent", "ai-chrome-extension" etc.
+  rating      Int
+  reviewBody  String       @db.Text
+  authorName  String
+  authorId    String?
+  user        User?        @relation(fields: [authorId], references: [id])
+  status      ReviewStatus @default(PENDING)
+  isVerified  Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([productSlug])
+  @@index([authorId])
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ReviewGenerationRecord {
+  id              String   @id @default(uuid())
+  totalReviews    Int
+  successCount    Int
+  failureCount    Int
+  startTime       DateTime
+  endTime         DateTime
+  errors          String[]
+  productsSummary Json // This will store the GenerationSummary array
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+//SHERLOCK SPECIFIC
+
+model SherlockJob {
+  id           String    @id @default(uuid())
+  taskId       String // task_id from API
+  requestId    String // request_id from API
+  username     String
+  status       JobStatus
+  outputFile   String? // output_file from API
+  errorMessage String?
+  results      Json? // For storing the found profiles
+  userId       String? // Optional, for authenticated users
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  totalFound   Int?
+  validFound   Int?
+
+  @@unique([taskId])
+  @@unique([requestId])
+  @@index([status])
+  @@index([userId])
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// For tracking daily usage limits
+model UserUsage {
+  id        String   @id @default(uuid())
+  userId    String? // null for anonymous users, tracked by IP
+  ipAddress String?
+  date      DateTime
+  count     Int      @default(0)
+
+  @@unique([userId, date])
+  @@unique([ipAddress, date])
+}
+
+//NOTIFICATION SYSTEM
+
+model Notification {
+  id        String             @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  status    NotificationStatus @default(UNREAD)
+  link      String? // Optional link to redirect when clicked
+  metadata  Json? // Optional additional data
+  createdAt DateTime           @default(now())
+  readAt    DateTime?
+  expiresAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  SYSTEM
+  CREDIT_UPDATE
+  LICENSE_EXPIRY
+  TEAM_INVITE
+  USAGE_LIMIT
+  FEATURE_ANNOUNCEMENT
+  SECURITY
+}
+
+enum NotificationStatus {
+  READ
+  UNREAD
+  ARCHIVED
+}
+
+//NEW PLANS FLOW
+
+// New enums for plan related info
+enum PlanTier {
+  T1 // 1 user
+  T2 // 5 users
+  T3 // 10 users
+  T4 // 20 users
+  ENTERPRISE // Custom
+}
+
+enum PlanDuration {
+  MONTHLY
+  LIFETIME
+}
+
+enum PlanVendor {
+  LEMON
+  APPSUMO
+  OLLY // for giveaways/internal
+}
+
+// New model to define available plans
+model Plan {
+  id        String       @id @default(uuid())
+  tier      PlanTier
+  duration  PlanDuration
+  vendor    PlanVendor
+  productId String // store vendor's product ID
+  name      String // display name
+  maxUsers  Int
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Relation to user subscriptions
+  subscriptions UserSubscription[]
+
+  @@unique([vendor, productId])
+  @@index([tier, duration, vendor])
+}
+
+// New model to track user subscriptions
+model UserSubscription {
+  id        String             @id @default(uuid())
+  userId    String
+  planId    String
+  startDate DateTime           @default(now())
+  endDate   DateTime?
+  status    SubscriptionStatus @default(ACTIVE)
+
+  // Make vendorSubId unique
+  vendorSubId String? @unique // Add unique constraint
+  orderId     String?
+  customerId  String?
+
+  lastBillingDate   DateTime?
+  nextBillingDate   DateTime?
+  paymentFailedDate DateTime?
+  pausedAt          DateTime?
+  resumedAt         DateTime?
+  cancelledAt       DateTime?
+
+  licenseKeyId String?
+  licenseKey   LicenseKey? @relation(fields: [licenseKeyId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
+  plan Plan @relation(fields: [planId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([licenseKeyId])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAUSED
+  PAYMENT_FAILED
+  PAST_DUE
+}
+
+// New models for autocommenter feature
+model LinkedInPost {
+  id          String   @id @default(uuid())
+  postId      String   // LinkedIn's post ID
+  postUrl     String
+  authorId    String   // LinkedIn author ID
+  authorName  String
+  content     String?  @db.Text
+  postedAt    DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relation to generated comments
+  comments    GeneratedComment[]
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+// Update AutoCommenterCampaign model
+model AutoCommenterCampaign {
+  id           String         @id @default(uuid())
+  userId       String
+  licenseKeyId String?
+  name         String
+  status       CampaignStatus @default(ACTIVE)
+  hashtags     String[]      // Array of hashtags to target
+  keywords     String[]      // New field for LinkedIn keyword targeting
+  companies    String[]      // New field for LinkedIn company targeting
+  postsPerDay  Int           @default(10)
+  platform     CommentPlatform @default(LINKEDIN) // New field
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  user       User               @relation("UserCampaigns", fields: [userId], references: [id])
+  licenseKey LicenseKey?        @relation("LicenseKeyCampaigns", fields: [licenseKeyId], references: [id])
+  comments   GeneratedComment[]
+
+  @@index([userId])
+  @@index([licenseKeyId])
+}
+
+// Modify existing GeneratedComment model
+model GeneratedComment {
+  id         String        @id @default(uuid())
+  campaignId String
+  postId     String        // ID of the post commented on
+  linkedInPostId String?   // New field for LinkedIn posts
+  postUrl    String       // URL of the post
+  comment    String       @db.Text
+  status     CommentStatus @default(PENDING)
+  platform   CommentPlatform @default(LINKEDIN) // New field
+  postedAt   DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  // Relations
+  campaign    AutoCommenterCampaign @relation(fields: [campaignId], references: [id])
+  linkedInPost LinkedInPost?       @relation(fields: [linkedInPostId], references: [id])
+
+  @@index([campaignId])
+  @@index([postId])
+  @@index([linkedInPostId])
+}
+
+enum CommentPlatform {
+  LINKEDIN
+  TWITTER
+  INSTAGRAM
+  // Add other platforms as needed
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  FAILED
+}
+
+enum CommentStatus {
+  PENDING
+  POSTED
+  FAILED
+  SKIPPED
+}
