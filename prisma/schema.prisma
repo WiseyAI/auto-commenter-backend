@@ -94,7 +94,7 @@ model LicenseKey {
 
   subscriptions UserSubscription[]
 
-  autoCampaigns AutoCommenterCampaign[] @relation("LicenseKeyCampaigns")
+  AutoCommenterConfig AutoCommenterConfig[]
 }
 
 model LicenseKeyCustomKnowledge {
@@ -412,11 +412,11 @@ model User {
 
   subscriptions UserSubscription[]
 
-sublicenses SubLicense[]
-emails      Emails[]
-oauthTokens OAuthToken[]
+  sublicenses SubLicense[]
+  emails      Emails[]
+  oauthTokens OAuthToken[]
 
-autoCampaigns AutoCommenterCampaign[] @relation("UserCampaigns")
+  autoCommenterConfig AutoCommenterConfig?
 }
 
 model Emails {
@@ -483,18 +483,18 @@ model TemporaryToken {
 }
 
 model Session {
-  id           String     @id
-  userId       String
-  token        String?    @unique
-  deviceType   DeviceType @default(WEB)
-  deviceInfo   Json?      // Store device metadata
-  lastActive   DateTime   @default(now())
-  expiresAt    DateTime
-  isRevoked    Boolean    @default(false)
-  
+  id         String     @id
+  userId     String
+  token      String?    @unique
+  deviceType DeviceType @default(WEB)
+  deviceInfo Json? // Store device metadata
+  lastActive DateTime   @default(now())
+  expiresAt  DateTime
+  isRevoked  Boolean    @default(false)
+
   // New fields for OAuth tokens
-  platformTokens Json?    // Store encrypted tokens for different platforms
-  
+  platformTokens Json? // Store encrypted tokens for different platforms
+
   user User @relation(references: [id], fields: [userId], onDelete: Cascade)
 
   @@index([token])
@@ -504,9 +504,9 @@ model Session {
 model OAuthToken {
   id           String   @id @default(uuid())
   userId       String
-  platform     String   // e.g., "linkedin", "twitter"
-  accessToken  String   // Encrypted access token
-  refreshToken String?  // Encrypted refresh token
+  platform     String // e.g., "linkedin", "twitter"
+  accessToken  String // Encrypted access token
+  refreshToken String? // Encrypted refresh token
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -517,6 +517,7 @@ model OAuthToken {
   @@unique([userId, platform])
   @@index([userId])
 }
+
 model RefreshToken {
   id         String     @id @default(uuid())
   token      String     @unique
@@ -775,6 +776,7 @@ enum TransactionType {
   PLAN_CREDITS
   PLAN_CREDITS_REMOVED
   PLAN_CREDITS_ADJUSTED
+  AUTO_COMMENTING
 }
 
 //REDEEM CODES
@@ -1046,85 +1048,58 @@ enum SubscriptionStatus {
   PAST_DUE
 }
 
-// New models for autocommenter feature
-model LinkedInPost {
-  id          String   @id @default(uuid())
-  postId      String   // LinkedIn's post ID
-  postUrl     String
-  authorId    String   // LinkedIn author ID
-  authorName  String
-  content     String?  @db.Text
-  postedAt    DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relation to generated comments
-  comments    GeneratedComment[]
-
-  @@index([postId])
-  @@index([authorId])
-}
-
-// Update AutoCommenterCampaign model
-model AutoCommenterCampaign {
-  id           String         @id @default(uuid())
-  userId       String
-  licenseKeyId String?
-  name         String
-  status       CampaignStatus @default(ACTIVE)
-  hashtags     String[]      // Array of hashtags to target
-  keywords     String[]      // New field for LinkedIn keyword targeting
-  companies    String[]      // New field for LinkedIn company targeting
-  postsPerDay  Int           @default(10)
-  platform     CommentPlatform @default(LINKEDIN) // New field
-  isActive     Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+// AutoCommenter Configuration
+model AutoCommenterConfig {
+  id            String          @id @default(uuid())
+  userId        String          @unique
+  licenseKeyId  String?
+  isEnabled     Boolean         @default(false)
+  postsPerDay   Int             @default(5) // Maximum 10
+  hashtags      String[] // Maximum 3 hashtags
+  useBrandVoice Boolean         @default(true)
+  platform      CommentPlatform @default(LINKEDIN)
+  accessToken   String // Encrypted access token
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   // Relations
-  user       User               @relation("UserCampaigns", fields: [userId], references: [id])
-  licenseKey LicenseKey?        @relation("LicenseKeyCampaigns", fields: [licenseKeyId], references: [id])
-  comments   GeneratedComment[]
+  user           User                   @relation(fields: [userId], references: [id])
+  licenseKey     LicenseKey?            @relation(fields: [licenseKeyId], references: [id])
+  commentHistory AutoCommenterHistory[]
 
   @@index([userId])
   @@index([licenseKeyId])
 }
 
-// Modify existing GeneratedComment model
-model GeneratedComment {
-  id         String        @id @default(uuid())
-  campaignId String
-  postId     String        // ID of the post commented on
-  linkedInPostId String?   // New field for LinkedIn posts
-  postUrl    String       // URL of the post
-  comment    String       @db.Text
-  status     CommentStatus @default(PENDING)
-  platform   CommentPlatform @default(LINKEDIN) // New field
-  postedAt   DateTime?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+// Track Posts and Comments across platforms
+model AutoCommenterHistory {
+  id             String          @id @default(uuid())
+  configId       String
+  postId         String // Platform-specific post ID
+  platform       CommentPlatform @default(LINKEDIN)
+  postUrl        String // URL of the post
+  postContent    String?         @db.Text
+  authorName     String? // Post author
+  commentContent String          @db.Text // The comment that was posted
+  status         CommentStatus   @default(PENDING)
+  postedAt       DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  errorMessage   String? // In case of failure
 
-  // Relations
-  campaign    AutoCommenterCampaign @relation(fields: [campaignId], references: [id])
-  linkedInPost LinkedInPost?       @relation(fields: [linkedInPostId], references: [id])
+  // Relation to config
+  config AutoCommenterConfig @relation(fields: [configId], references: [id])
 
-  @@index([campaignId])
+  @@index([configId])
   @@index([postId])
-  @@index([linkedInPostId])
+  @@index([status])
+  @@index([platform])
 }
 
 enum CommentPlatform {
   LINKEDIN
   TWITTER
   INSTAGRAM
-  // Add other platforms as needed
-}
-
-enum CampaignStatus {
-  ACTIVE
-  PAUSED
-  COMPLETED
-  FAILED
 }
 
 enum CommentStatus {

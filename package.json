@@ -6,7 +6,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "bun run ./src/index.ts",
-    "dev": "bun run ./src/index.ts --watch",
+    "dev": "bun run ./src/index.ts --watch"
   },
   "type": "module",
   "devDependencies": {
