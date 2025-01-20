@@ -1,12 +1,11 @@
 // src/routes/comment.ts
 import express, { type Request, type Response } from "express";
 import { processLinkedinPost } from "../services/linkedin";
-import { postComment } from "../jobs/postComment";
 import { decrypt } from "../services/encryption";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { getPostContent } from "../jobs/fetchPosts";
 import { generateComment } from "../jobs/generateComment";
-import { getColumnData, getSpecificColumnData } from "../services/sheetData";
+import { getSpecificColumnData } from "../services/sheetData";
 
 const router = express.Router();
 const sheetId = process.env.PUBLISHED_SHEET_ID || "";
@@ -15,7 +14,7 @@ router.post(
   "/comment",
   asyncHandler(async (req: Request, res: Response) => {
     try {
-      const columnResponse = await getSpecificColumnData(sheetId, "technology");
+      const columnResponse = await getSpecificColumnData(sheetId, "trending");
       const accessToken = process.env.TEST_ACCESS_TOKEN;
 
       // First check if the column data was successfully fetched
