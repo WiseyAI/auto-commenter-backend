@@ -1,113 +1,94 @@
 // src/routes/comment.ts
-import express, { type Request, type Response } from 'express';
-import { processLinkedinPost } from '../services/linkedin';
-import { postComment } from '../jobs/postComment';
-import { decrypt } from '../services/encryption';
-import { asyncHandler } from '../middleware/asyncHandler';
-import { getPostContent } from '../jobs/fetchPosts';
-import { generateComment } from '../jobs/generateComment';
+import express, { type Request, type Response } from "express";
+import { processLinkedinPost } from "../services/linkedin";
+import { postComment } from "../jobs/postComment";
+import { decrypt } from "../services/encryption";
+import { asyncHandler } from "../middleware/asyncHandler";
+import { getPostContent } from "../jobs/fetchPosts";
+import { generateComment } from "../jobs/generateComment";
+import { getColumnData, getSpecificColumnData } from "../services/sheetData";
 
 const router = express.Router();
+const sheetId = process.env.PUBLISHED_SHEET_ID || "";
 
-router.post('/comment', asyncHandler(async (req: Request, res: Response) => {
+router.post(
+  "/comment",
+  asyncHandler(async (req: Request, res: Response) => {
     try {
-        const { postUrls } = req.body;  // Expect an array of URLs
-        const accessToken = process.env.TEST_ACCESS_TOKEN;
+      const columnResponse = await getSpecificColumnData(sheetId, "technology");
+      const accessToken = process.env.TEST_ACCESS_TOKEN;
 
-        // Validate input
-        if (!Array.isArray(postUrls) || postUrls.length === 0 || !accessToken) {
-            return res.status(400).json({ error: 'Missing required parameters or invalid postUrls format' });
-        }
+      // First check if the column data was successfully fetched
+      if (!columnResponse.success || !columnResponse.data) {
+        return res.status(400).json({
+          error:
+            columnResponse.error || "Failed to fetch technology column data",
+        });
+      }
 
-        const decryptedAccessToken = decrypt(accessToken);
+      // Now we know data exists and is the column data
+      const postUrls = columnResponse.data as string[];
 
-        // Process all URLs and collect results
-        const results = [];
-        const errors = [];
+      // Validate input
+      if (!Array.isArray(postUrls) || postUrls.length === 0 || !accessToken) {
+        return res.status(400).json({
+          error: "Missing required parameters or invalid postUrls format",
+        });
+      }
 
-        for (const url of postUrls) {
-            try {
-                const comment = await processLinkedinPost(url, decryptedAccessToken);
-                results.push({
-                    url,
-                    success: true,
-                    comment
-                });
-            } catch (error) {
-                errors.push({
-                    url,
-                    error: error instanceof Error ? error.message : 'Processing error'
-                });
-            }
-        }
+      const decryptedAccessToken = decrypt(accessToken);
 
-        console.log('reload page');
+      // Process all URLs at once since processLinkedinPost now handles arrays
+      try {
+        const results = await processLinkedinPost(
+          postUrls,
+          decryptedAccessToken,
+        );
 
         res.json({
-            success: true,
-            processed: results,
-            errors: errors.length > 0 ? errors : undefined
+          success: true,
+          processed: results.filter((r) => r.status === "success"),
+          errors: results.filter((r) => r.status === "error"),
         });
-
-    } catch (error) {
-        console.error('Error:', error);
+      } catch (error) {
         res.status(500).json({
-            error: error instanceof Error ? error.message : 'Internal server error'
+          success: false,
+          error: error instanceof Error ? error.message : "Processing error",
         });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Internal server error",
+      });
     }
-}));
-router.post('/comment/test', asyncHandler(async (req: Request, res: Response) => {
+  }),
+);
+
+router.post(
+  "/post/test",
+  asyncHandler(async (req: Request, res: Response) => {
     try {
-        const { postId, message } = req.body;
-        const accessToken = process.env.TEST_ACCESS_TOKEN!;
-        if (!postId || !accessToken) {
-            return res.status(400).json({ error: 'Missing required parameters' });
-        }
+      const { postUrl } = req.body;
+      const accessToken = process.env.BRIGHT_DATA_TOKEN!;
+      if (!postUrl || !accessToken) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
 
-        const decryptedAccessToken = decrypt(accessToken);
-        console.log('accessToken', decryptedAccessToken);
+      const post = await getPostContent(postUrl);
+      const comment = await generateComment(post);
 
-
-
-        const comment = await postComment(postId, message, decryptedAccessToken);
-
-        res.json({
-            success: true,
-            comment
-        });
-
+      res.json({
+        success: true,
+        comment,
+      });
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({
-            error: error instanceof Error ? error.message : 'Internal server error'
-        });
+      console.error("Error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Internal server error",
+      });
     }
-}));
-
-router.post('/post/test', asyncHandler(async (req: Request, res: Response) => {
-    try {
-        const { postUrl } = req.body;
-        const accessToken = process.env.BRIGHT_DATA_TOKEN!;
-        if (!postUrl || !accessToken) {
-            return res.status(400).json({ error: 'Missing required parameters' });
-        }
-
-        const post = await getPostContent(postUrl);
-        const comment = await generateComment(post);
-
-        res.json({
-            success: true,
-            comment
-        });
-
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({
-            error: error instanceof Error ? error.message : 'Internal server error'
-        });
-    }
-}))
-
-
+  }),
+);
 
 export default router;

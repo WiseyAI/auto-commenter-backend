@@ -1,11 +1,6 @@
 import { parse } from "csv-parse";
 import type { ColumnData, SheetResponse } from "../types";
-// Types
-/**
- * Fetches raw data from Google Sheet
- * @param sheetId - Google Sheet ID
- * @returns Promise with the CSV data
- */
+
 export const fetchSheetData = async (sheetId: string): Promise<string> => {
   if (!sheetId) {
     throw new Error("Sheet ID is not defined");
