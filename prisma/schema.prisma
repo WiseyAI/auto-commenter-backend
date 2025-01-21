@@ -1114,5 +1114,6 @@ enum Hashtag {
   GENAI
   FASHION
   MARKETING
+  STARTUP
   HIRING
 }
