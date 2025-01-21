@@ -1,3 +1,4 @@
+// src/services/linkedin.ts
 import { getPostContent } from "../jobs/fetchPosts";
 import { generateComment } from "../jobs/generateComment";
 import { postComment } from "../jobs/postComment";

@@ -64,30 +64,30 @@ router.post(
   }),
 );
 
-router.post(
-  "/post/test",
-  asyncHandler(async (req: Request, res: Response) => {
-    try {
-      const { postUrl } = req.body;
-      const accessToken = process.env.BRIGHT_DATA_TOKEN!;
-      if (!postUrl || !accessToken) {
-        return res.status(400).json({ error: "Missing required parameters" });
-      }
+// router.post(
+//   "/post/test",
+//   asyncHandler(async (req: Request, res: Response) => {
+//     try {
+//       const { postUrl } = req.body;
+//       const accessToken = process.env.BRIGHT_DATA_TOKEN!;
+//       if (!postUrl || !accessToken) {
+//         return res.status(400).json({ error: "Missing required parameters" });
+//       }
 
-      const post = await getPostContent(postUrl);
-      const comment = await generateComment(post);
+//       const post = await getPostContent(postUrl);
+//       const comment = await generateComment(post);
 
-      res.json({
-        success: true,
-        comment,
-      });
-    } catch (error) {
-      console.error("Error:", error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : "Internal server error",
-      });
-    }
-  }),
-);
+//       res.json({
+//         success: true,
+//         comment,
+//       });
+//     } catch (error) {
+//       console.error("Error:", error);
+//       res.status(500).json({
+//         error: error instanceof Error ? error.message : "Internal server error",
+//       });
+//     }
+//   }),
+// );
 
 export default router;

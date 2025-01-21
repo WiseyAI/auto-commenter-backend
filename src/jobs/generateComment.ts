@@ -1,3 +1,4 @@
+// src/jobs/generateComment.ts
 import { createCommentChain } from "../chains/comment-chain";
 import type { Post } from "../types";
 
@@ -5,8 +6,8 @@ import type { Post } from "../types";
 const commentChain = createCommentChain();
 
 export const generateComment = async (postContent: Post) => {
-    const result = await commentChain.invoke({
-        postContent,
-    });
-    return result.text;
+  const result = await commentChain.invoke({
+    postContent,
+  });
+  return result.text;
 };
