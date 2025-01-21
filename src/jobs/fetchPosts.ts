@@ -1,3 +1,6 @@
+import { cleanUpAuthorName } from "../services/misc";
+import type { ProcessedPost, SnapshotData } from "../types";
+
 export const getPostContent = async (postUrls: string[]) => {
   const accessToken = process.env.BRIGHT_DATA_TOKEN!;
   try {
@@ -82,22 +85,25 @@ export const getPostContent = async (postUrls: string[]) => {
     // Fetch snapshot with retries
     const snapshotData = await fetchSnapshot();
 
-    console.log("Snapshot data:", snapshotData);
+    // console.log("Snapshot data:", snapshotData);
     // Process all posts in the snapshot data
-    const processedPosts = snapshotData.map((post: any) => ({
-      text: post.post_text || "",
-      hashtags: post.hashtags || [],
-      date: post.date_posted,
-      likes: post.num_likes,
-      comments: post.num_comments,
-      postUrn: post.id,
-      author: {
-        name: post.user_id,
-        title: post.user_title,
-        followers: post.user_followers,
-      },
-    }));
 
+    const processedPosts: ProcessedPost[] = snapshotData.map(
+      (post: SnapshotData) => ({
+        text: post.post_text || "",
+        hashtags: post.hashtags || [],
+        date: post.date_posted,
+        likes: post.num_likes,
+        postUrl: post.url,
+        comments: post.num_comments,
+        postUrn: post.id,
+        author: {
+          name: cleanUpAuthorName(post.headline),
+          title: post.user_title,
+          followers: post.user_followers || 0,
+        },
+      }),
+    );
     return processedPosts;
   } catch (error) {
     console.error("Error fetching post content:", error);

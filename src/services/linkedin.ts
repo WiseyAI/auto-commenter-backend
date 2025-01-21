@@ -28,11 +28,17 @@ export const processLinkedinPost = async (
           postUrn: post.postUrn,
           comment,
           status: "success",
+          postUrl: post.postUrl,
+          postContent: post.text,
+          authorName: post.author.name,
         });
       } catch (error) {
         // Handle errors for individual posts
         results.push({
           postUrn: post.postUrn,
+          postUrl: post.postUrl,
+          postContent: post.text,
+          authorName: post.author.name,
           comment: "",
           status: "error",
           error: error instanceof Error ? error.message : "Unknown error",

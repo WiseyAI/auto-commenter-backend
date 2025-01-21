@@ -3,6 +3,7 @@ import cors from "cors";
 import prisma from "./lib/db";
 import commentRoutes from "./routes/comment";
 import sheetRoutes from "./routes/sheet";
+import autoCommeterRoutes from "./routes/autoCommenter";
 import { asyncHandler } from "./middleware/asyncHandler";
 
 const app = express();
@@ -22,6 +23,8 @@ app.get(
 
 app.use("/api", commentRoutes);
 app.use("/api", sheetRoutes);
+app.use("/api", autoCommeterRoutes);
+
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
