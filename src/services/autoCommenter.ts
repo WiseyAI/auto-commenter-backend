@@ -14,7 +14,7 @@ async function getHashtagPosts(hashtag: string): Promise<string[]> {
     throw new Error("Sheet ID not configured");
   }
 
-  const response = await getSpecificColumnData(sheetId, hashtag);
+  const response = await getSpecificColumnData(sheetId, hashtag.toLowerCase());
 
   // Ensure the response matches the expected type
   const columnResponse = response as ColumnResponse;
