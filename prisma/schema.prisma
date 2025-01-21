@@ -1048,25 +1048,24 @@ enum SubscriptionStatus {
   PAST_DUE
 }
 
-// AutoCommenter Configuration
+// Updated AutoCommenterConfig model
 model AutoCommenterConfig {
   id            String          @id @default(uuid())
   userId        String          @unique
   licenseKeyId  String?
   isEnabled     Boolean         @default(false)
   postsPerDay   Int             @default(5) // Maximum 10
-  hashtags      String[] // Maximum 3 hashtags
+  hashtags      Hashtag[]       // Maximum 3 hashtags, now using enum
   useBrandVoice Boolean         @default(true)
   platform      CommentPlatform @default(LINKEDIN)
-  accessToken   String // Encrypted access token
+  accessToken   String          // Encrypted access token
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
-
   // Relations
   user           User                   @relation(fields: [userId], references: [id])
   licenseKey     LicenseKey?            @relation(fields: [licenseKeyId], references: [id])
   commentHistory AutoCommenterHistory[]
-
+  
   @@index([userId])
   @@index([licenseKeyId])
 }
@@ -1107,4 +1106,13 @@ enum CommentStatus {
   POSTED
   FAILED
   SKIPPED
+}
+
+enum Hashtag {
+  TRENDING
+  TECHNOLOGY
+  GENAI
+  FASHION
+  MARKETING
+  HIRING
 }
