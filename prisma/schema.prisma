@@ -166,6 +166,22 @@ model SubLicense {
 
   // Analytics and usage
   usageAnalytics UsageTracking[]
+    subLicenseGoals SubLicenseGoal[]
+}
+
+
+model SubLicenseGoal {
+  id              String   @id @default(uuid())
+  subLicenseId    String
+  userId          String
+  platform        String   // The platform for which the goal is set
+  goal            String   // The goal description
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  daysToAchieve   Int?
+
+  subLicense      SubLicense @relation(fields: [subLicenseId], references: [id])
+  user            User @relation(fields: [userId], references: [id])
 }
 
 model ElfGameAttempt {
@@ -372,6 +388,7 @@ model User {
   updatedAt                   DateTime @updatedAt
   deactivated                 Boolean  @default(false)
   isAdmin                     Boolean  @default(false)
+  isBetaTester                Boolean  @default(false)
   isSales                     Boolean  @default(false)
   isPaidUser                  Boolean  @default(false)
   onboardingComplete          Boolean  @default(false) // New field
@@ -400,6 +417,7 @@ model User {
   purchases               Purchase[]
   organizations           OrganizationUser[] // New relation
   prompts                 Prompt[]
+  unlockedPrompts         UnlockedPrompt[] 
   emailVerificationTokens EmailVerificationToken[]
   credit                  UserCredit?
   reviews                 ProductReview[] // Add this line to existing User model
@@ -413,10 +431,13 @@ model User {
   subscriptions UserSubscription[]
 
   sublicenses SubLicense[]
+
+  subLicenseGoals SubLicenseGoal[]
   emails      Emails[]
   oauthTokens OAuthToken[]
 
   autoCommenterConfig AutoCommenterConfig?
+  autoCommenterHistory AutoCommenterHistory[]
 }
 
 model Emails {
@@ -715,20 +736,38 @@ enum PlanName {
 }
 
 model Prompt {
-  id          String       @id @default(uuid())
-  text        String
-  upvotes     Int          @default(0)
-  category    String
-  contributor String?
-  title       String?
-  userId      String
-  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userUpvotes UserUpvote[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id            String   @id @default(uuid())
+  text          String   @db.Text
+  upvotes       Int      @default(0)
+  category      String
+  contributor   String?
+  title         String?
+  userId        String
+  isPremium     Boolean  @default(false)  // New field
+  creditCost    Int      @default(5)      // New field
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userUpvotes   UserUpvote[]
+  unlockedBy    UnlockedPrompt[]  // New relation
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([userId])
 }
+
+model UnlockedPrompt {
+  id        String   @id @default(uuid())
+  userId    String
+  promptId  String
+  unlockedAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt    Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, promptId])
+  @@index([userId])
+  @@index([promptId])
+}
+
 
 model UserUpvote {
   id        String   @id @default(uuid())
@@ -1073,27 +1112,43 @@ model AutoCommenterConfig {
 // Track Posts and Comments across platforms
 model AutoCommenterHistory {
   id             String          @id @default(uuid())
+  userId         String          
+  user           User           @relation(fields: [userId], references: [id])
   configId       String
-  postId         String // Platform-specific post ID
+  postId         String          // Platform-specific post ID
   platform       CommentPlatform @default(LINKEDIN)
-  postUrl        String // URL of the post
+  postUrl        String          // URL of the post
   postContent    String?         @db.Text
-  authorName     String? // Post author
+  authorName     String?         // Post author
   commentContent String          @db.Text // The comment that was posted
   status         CommentStatus   @default(PENDING)
   postedAt       DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  errorMessage   String? // In case of failure
-
+  errorMessage   String?         // In case of failure
+  
   // Relation to config
-  config AutoCommenterConfig @relation(fields: [configId], references: [id])
+  config         AutoCommenterConfig @relation(fields: [configId], references: [id])
 
   @@index([configId])
   @@index([postId])
   @@index([status])
   @@index([platform])
+  @@index([userId])  // Added index for the foreign key
 }
+
+
+
+model PostCache {
+  id            String   @id @default(cuid())
+  url           String   @unique
+  snapshotData  Json
+  createdAt     DateTime @default(now())
+  lastAccessed  DateTime @updatedAt
+
+  @@index([url])
+}
+
 
 enum CommentPlatform {
   LINKEDIN
@@ -1107,13 +1162,14 @@ enum CommentStatus {
   FAILED
   SKIPPED
 }
-
 enum Hashtag {
-  TRENDING
+  SALES
   TECHNOLOGY
   GENAI
-  FASHION
   MARKETING
   STARTUP
-  HIRING
+  CONTENTCREATION
+  SOFTWAREENGINEERING
+  ECOMMERCE
 }
+

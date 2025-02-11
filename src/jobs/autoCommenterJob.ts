@@ -1,4 +1,3 @@
-//src/jobs/autoCommenterJob.ts
 // src/jobs/autoCommenterJob.ts
 import { PrismaClient, CommentPlatform, CommentStatus } from "@prisma/client";
 import { processUserAutoComments } from "../services/autoCommenter";
